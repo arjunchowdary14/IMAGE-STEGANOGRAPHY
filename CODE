@@ -1,0 +1,282 @@
+from tkinter import *
+from tkinter import filedialog
+from PIL import Image, ImageTk
+import os
+from stegano import lsb
+import cv2
+import numpy as np
+
+
+def main_menu():
+    root = Tk()
+    root.title("Steganography - Choose Mode")
+    root.geometry("800x600+150+100")
+    root.resizable(False, False)
+    root.configure(bg="#2f4155")
+
+    def open_image_steganography():
+        root.destroy()
+        image_steganography()
+
+    def open_video_steganography():
+        root.destroy()
+        video_steganography()
+
+    Label(root, text="Choose Steganography Type", bg="#2f4155", fg="white", font="arial 25 bold").pack(pady=50)
+    Button(root, text="Image Steganography", width=20, height=2, font="arial 14 bold",
+           command=open_image_steganography).pack(pady=20)
+    Button(root, text="Video Steganography", width=20, height=2, font="arial 14 bold",
+           command=open_video_steganography).pack(pady=20)
+
+    root.mainloop()
+
+
+def image_steganography():
+    root = Tk()
+    root.title("Image Steganography")
+    root.geometry("800x600+150+100")
+    root.resizable(False, False)
+    root.configure(bg="#2f4155")
+
+    filename = ""
+    secret = None
+
+    def go_back():
+        root.destroy()
+        main_menu()
+
+    def showimage():
+        nonlocal filename
+        filename = filedialog.askopenfilename(initialdir=os.getcwd(),
+                                              title="Select Image File",
+                                              filetypes=(("PNG FILE", "*.png"),
+                                                         ("JPG FILE", "*.jpg"),
+                                                         ("ALL files", "*.*")))
+        if filename:
+            try:
+                img = Image.open(filename)
+                img = img.resize((250, 250))
+                img = ImageTk.PhotoImage(img)
+                lbl.configure(image=img, width=250, height=250)
+                lbl.image = img
+            except Exception as e:
+                print(f"Error opening image: {e}")
+
+    def Hide():
+        nonlocal secret
+        message = text1.get(1.0, END).strip()
+        key = key_entry.get()
+
+        if not key:
+            print("Secret key is required!")
+            return
+
+        if filename and message:
+            try:
+                encoded_message = f"{key}:{message}"
+                secret = lsb.hide(filename, encoded_message)
+            except Exception as e:
+                print(f"Error hiding message: {e}")
+        else:
+            print("Please select an image and enter a message.")
+
+    def Show():
+        if filename:
+            entered_key = key_entry.get()
+            if not entered_key:
+                print("Secret key is required to reveal the message!")
+                return
+            try:
+                encoded_message = lsb.reveal(filename)
+                if encoded_message:
+                    stored_key, clear_message = encoded_message.split(":", 1)
+                    if stored_key == entered_key:
+                        text1.delete(1.0, END)
+                        text1.insert(END, clear_message)
+                    else:
+                        print("Incorrect secret key!")
+                else:
+                    print("No hidden message found.")
+            except Exception as e:
+                print(f"Error revealing message: {e}")
+
+    def save():
+        if secret:
+            try:
+                secret.save("hidden.png")
+                print("Image saved as hidden.png")
+            except Exception as e:
+                print(f"Error saving image: {e}")
+        else:
+            print("No secret image to save")
+
+    Label(root, text="Image Steganography", bg="#2f4155", fg="white", font="arial 25 bold").place(x=200, y=20)
+
+    key_frame = Frame(root, bd=3, bg="white", width=780, height=50, relief=GROOVE)
+    key_frame.place(x=10, y=80)
+    Label(key_frame, text="Secret Key:", font="arial 12 bold", bg="white").place(x=10, y=10)
+    key_entry = Entry(key_frame, font="arial 12", bg="lightgrey", width=50)
+    key_entry.place(x=100, y=10)
+
+    f = Frame(root, bd=3, bg="black", width=340, height=280, relief=GROOVE)
+    f.place(x=10, y=140)
+    lbl = Label(f, bg="black")
+    lbl.place(x=40, y=10)
+
+    frame2 = Frame(root, bd=3, bg="white", width=340, height=280, relief=GROOVE)
+    frame2.place(x=360, y=140)
+    text1 = Text(frame2, font="Roboto 20", bg="white", fg="black", relief=GROOVE, wrap=WORD)
+    text1.place(x=0, y=0, width=320, height=295)
+
+    scrollbar1 = Scrollbar(frame2)
+    scrollbar1.place(x=320, y=0, height=300)
+    scrollbar1.configure(command=text1.yview)
+    text1.configure(yscrollcommand=scrollbar1.set)
+
+    frame3 = Frame(root, bd=3, bg="#2f4155", width=330, height=100, relief=GROOVE)
+    frame3.place(x=10, y=430)
+    Button(frame3, text="Open Image", width=10, height=2, font="arial 14 bold", command=showimage).place(x=20, y=30)
+    Button(frame3, text="Save Image", width=10, height=2, font="arial 14 bold", command=save).place(x=180, y=30)
+
+    frame4 = Frame(root, bd=3, bg="#2f4155", width=450, height=100, relief=GROOVE)
+    frame4.place(x=360, y=430)
+    Button(frame4, text="Hide Data", width=10, height=2, font="arial 14 bold", command=Hide).place(x=20, y=30)
+    Button(frame4, text="Show Data", width=10, height=2, font="arial 14 bold", command=Show).place(x=160, y=30)
+    Button(frame4, text="Back", width=10, height=2, font="arial 14 bold", command=go_back).place(x=300, y=30)
+
+    root.mainloop()
+
+
+def video_steganography():
+    root = Tk()
+    root.title("Video Steganography")
+    root.geometry("800x600+150+100")
+    root.resizable(False, False)
+    root.configure(bg="#2f4155")
+
+    video_filename = ""
+    output_filename = "hidden_video.mp4"
+
+    def go_back():
+        root.destroy()
+        main_menu()
+
+    def open_video():
+        nonlocal video_filename
+        video_filename = filedialog.askopenfilename(initialdir=os.getcwd(),
+                                                    title="Select Video File",
+                                                    filetypes=(("MP4 FILE", "*.mp4"),
+                                                               ("AVI FILE", "*.avi"),
+                                                               ("ALL files", "*.*")))
+        if video_filename:
+            show_video_frame()
+
+    def show_video_frame():
+        cap = cv2.VideoCapture(video_filename)
+        ret, frame = cap.read()
+        if ret:
+            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            img = Image.fromarray(frame_rgb)
+            img = img.resize((250, 250))
+            img = ImageTk.PhotoImage(img)
+            lbl.configure(image=img, width=250, height=250)
+            lbl.image = img
+        cap.release()
+
+    def Hide():
+        message = text1.get(1.0, END).strip()
+        key = key_entry.get()
+
+        if not key:
+            print("Secret key is required!")
+            return
+
+        if video_filename and message:
+            try:
+                encoded_message = f"{key}:{message}"
+                cap = cv2.VideoCapture(video_filename)
+                ret, frame = cap.read()
+                if not ret:
+                    print("Error reading video.")
+                    return
+
+                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                frame_pil = Image.fromarray(frame_rgb)
+                secret_frame = lsb.hide(frame_pil, encoded_message)
+                secret_frame.save("hidden_frame.png")
+
+                height, width, _ = frame.shape
+                out = cv2.VideoWriter(output_filename, cv2.VideoWriter_fourcc(*'XVID'), 30, (width, height))
+
+                out.write(cv2.cvtColor(np.array(secret_frame), cv2.COLOR_RGB2BGR))
+                while True:
+                    ret, frame = cap.read()
+                    if not ret:
+                        break
+                    out.write(frame)
+
+                cap.release()
+                out.release()
+                print(f"Saved video as {output_filename}, first frame saved as hidden_frame.png")
+            except Exception as e:
+                print(f"Error hiding message: {e}")
+
+    def Show():
+        entered_key = key_entry.get()
+        if not entered_key:
+            print("Secret key is required!")
+            return
+        try:
+            secret_frame = Image.open("hidden_frame.png")
+            encoded_message = lsb.reveal(secret_frame)
+            if encoded_message:
+                stored_key, clear_message = encoded_message.split(":", 1)
+                if stored_key == entered_key:
+                    text1.delete(1.0, END)
+                    text1.insert(END, clear_message)
+                else:
+                    print("Incorrect key!")
+            else:
+                print("No hidden message.")
+        except Exception as e:
+            print(f"Error revealing message: {e}")
+
+    Label(root, text="Video Steganography", bg="#2f4155", fg="white", font="arial 25 bold").place(x=200, y=20)
+
+    key_frame = Frame(root, bd=3, bg="white", width=780, height=50, relief=GROOVE)
+    key_frame.place(x=10, y=80)
+    Label(key_frame, text="Secret Key:", font="arial 12 bold", bg="white").place(x=10, y=10)
+    key_entry = Entry(key_frame, font="arial 12", bg="lightgrey", width=50)
+    key_entry.place(x=100, y=10)
+
+    f = Frame(root, bd=3, bg="black", width=340, height=280, relief=GROOVE)
+    f.place(x=10, y=140)
+    lbl = Label(f, bg="black")
+    lbl.place(x=40, y=10)
+
+    frame2 = Frame(root, bd=3, bg="white", width=340, height=280, relief=GROOVE)
+    frame2.place(x=360, y=140)
+    text1 = Text(frame2, font="Roboto 20", bg="white", fg="black", relief=GROOVE, wrap=WORD)
+    text1.place(x=0, y=0, width=320, height=295)
+
+    scrollbar1 = Scrollbar(frame2)
+    scrollbar1.place(x=320, y=0, height=300)
+    scrollbar1.configure(command=text1.yview)
+    text1.configure(yscrollcommand=scrollbar1.set)
+
+    frame3 = Frame(root, bd=3, bg="#2f4155", width=330, height=100, relief=GROOVE)
+    frame3.place(x=10, y=430)
+    Button(frame3, text="Open Video", width=10, height=2, font="arial 14 bold", command=open_video).place(x=20, y=30)
+    Button(frame3, text="Save Video", width=10, height=2, font="arial 14 bold", command=lambda: print(f"Video saved as {output_filename}")).place(x=180, y=30)
+
+    frame4 = Frame(root, bd=3, bg="#2f4155", width=450, height=100, relief=GROOVE)
+    frame4.place(x=360, y=430)
+    Button(frame4, text="Hide Data", width=10, height=2, font="arial 14 bold", command=Hide).place(x=20, y=30)
+    Button(frame4, text="Show Data", width=10, height=2, font="arial 14 bold", command=Show).place(x=160, y=30)
+    Button(frame4, text="Back", width=10, height=2, font="arial 14 bold", command=go_back).place(x=300, y=30)
+
+    root.mainloop()
+
+
+if __name__ == "__main__":
+    main_menu()
